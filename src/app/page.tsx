@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Clock, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import MemeGrid from '@/components/MemeGrid';
 import TopTokens from '@/components/TopTokens';
 import CountdownTimer from '@/components/CountdownTimer';
@@ -14,7 +14,7 @@ export default function Home() {
   const { connected } = useWallet();
   const [isMintModalOpen, setIsMintModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [slotsRemaining, setSlotsRemaining] = useState(10000);
+  const [slotsRemaining] = useState(10000);
   const [isLaunched, setIsLaunched] = useState(false);
 
   // Mock data - replace with real blockchain data

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
 
 interface Token {
   id: number;
@@ -40,7 +41,7 @@ export default function TopTokens({ tokens }: TopTokensProps) {
             
             {/* Token Image */}
             <div className="w-full h-48 mb-4 rounded-lg overflow-hidden">
-              <img 
+              <Image 
                 src={token.image} 
                 alt={token.name}
                 className="w-full h-full object-cover"

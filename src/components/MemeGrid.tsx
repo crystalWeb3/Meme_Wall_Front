@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Heart} from 'lucide-react';
+import Image from 'next/image';
 
 interface MemeGridProps {
   onSlotClick: (slotNumber: number) => void;
@@ -89,7 +90,7 @@ export default function MemeGrid({ onSlotClick, isLaunched }: MemeGridProps) {
             {slot.isOwned ? (
               <div className="h-full p-2 flex flex-col">
                 {slot.image ? (
-                  <img 
+                  <Image 
                     src={slot.image} 
                     alt={slot.title || `Slot ${slot.id}`}
                     className="w-full h-3/4 object-cover rounded mb-1"

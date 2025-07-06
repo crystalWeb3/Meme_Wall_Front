@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Image as ImageIcon, Link, DollarSign } from 'lucide-react';
+import { X, Upload, Image as Link, DollarSign } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import Image from 'next/image';
 
 interface MintModalProps {
   slotNumber: number;
@@ -145,7 +146,7 @@ export default function MintModal({ slotNumber, isOpen, onClose }: MintModalProp
                 >
                   {imagePreview ? (
                     <div className="space-y-2">
-                      <img 
+                      <Image 
                         src={imagePreview} 
                         alt="Preview" 
                         className="w-32 h-32 object-cover rounded-lg mx-auto"
