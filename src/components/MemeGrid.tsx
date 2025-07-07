@@ -3,10 +3,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Crown } from 'lucide-react';
+// import { PublicKey } from '@solana/web3.js';
 
 interface MemeGridProps {
   onSlotClick: (slotNumber: number) => void;
-  isLaunched: boolean;
+  blockchainSlots?: Array<{
+    slotNumber: number;
+    owner: string;
+    mint: string;
+    metadataUri: string;
+    isMinted: boolean;
+  }>;
+  loading?: boolean;
+  highlightedSlot?: number | null;
 }
 
 interface Slot {
@@ -20,35 +29,48 @@ interface Slot {
   isFeatured?: boolean;
 }
 
-export default function MemeGrid({ onSlotClick, isLaunched }: MemeGridProps) {
+export default function MemeGrid({ onSlotClick, blockchainSlots = [], loading = false, highlightedSlot }: MemeGridProps) {
   const [slots, setSlots] = useState<Slot[]>([]);
-  const [loading, setLoading] = useState(true);
   const [visibleSlots, setVisibleSlots] = useState<Slot[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const slotsPerPage = 100; // Show 100 slots at a time for better performance
 
-  // Generate 10,000 slots
+  // Convert blockchain data to display format
   useEffect(() => {
     const generateSlots = () => {
       const newSlots: Slot[] = [];
       for (let i = 1; i <= 10000; i++) {
-        newSlots.push({
-          id: i,
-          isOwned: Math.random() < 0.15, // 15% owned for demo
-          owner: Math.random() < 0.15 ? `0x${Math.random().toString(16).slice(2, 10)}...` : undefined,
-          image: Math.random() < 0.15 ? `https://picsum.photos/200/200?random=${i}` : undefined,
-          title: Math.random() < 0.15 ? `Meme #${i}` : undefined,
-          upvotes: Math.floor(Math.random() * 500),
-          downvotes: Math.floor(Math.random() * 50),
-          isFeatured: i <= 3, // First 3 slots are featured
-        });
+        // Check if this slot exists in blockchain data
+        const blockchainSlot = blockchainSlots.find(s => s.slotNumber === i);
+        
+        if (blockchainSlot && blockchainSlot.isMinted) {
+          // Slot is owned - use blockchain data
+          newSlots.push({
+            id: i,
+            isOwned: true,
+            owner: `${blockchainSlot.owner.slice(0, 8)}...`,
+            image: blockchainSlot.metadataUri || `https://picsum.photos/200/200?random=${i}`,
+            title: blockchainSlot.metadataUri ? `Slot #${i}` : `Slot #${i}`,
+            upvotes: Math.floor(Math.random() * 500),
+            downvotes: Math.floor(Math.random() * 50),
+            isFeatured: i <= 3,
+          });
+        } else {
+          // Slot is available
+          newSlots.push({
+            id: i,
+            isOwned: false,
+            upvotes: 0,
+            downvotes: 0,
+            isFeatured: i <= 3,
+          });
+        }
       }
       setSlots(newSlots);
-      setLoading(false);
     };
 
     generateSlots();
-  }, []);
+  }, [blockchainSlots]);
 
   // Pagination for better performance
   useEffect(() => {
@@ -87,6 +109,7 @@ export default function MemeGrid({ onSlotClick, isLaunched }: MemeGridProps) {
         {visibleSlots.map((slot) => (
           <motion.div
             key={slot.id}
+            data-slot={slot.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2 }}
@@ -99,6 +122,7 @@ export default function MemeGrid({ onSlotClick, isLaunched }: MemeGridProps) {
                 : 'border-gray-600 bg-gray-800/20 hover:border-yellow-400'
               }
               ${slot.isFeatured ? 'ring-2 ring-yellow-400 ring-opacity-50' : ''}
+              ${highlightedSlot === slot.id ? 'ring-4 ring-yellow-400 ring-opacity-75 animate-pulse' : ''}
             `}
             onClick={() => onSlotClick(slot.id)}
           >

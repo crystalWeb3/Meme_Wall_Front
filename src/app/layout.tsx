@@ -1,7 +1,13 @@
-import type { Metadata } from "next";
+'use client';
+
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { WalletProvider } from '@/components/WalletProvider';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { clusterApiUrl } from '@solana/web3.js';
+import { useMemo } from 'react';
 
 const geist = Geist({
   variable: "--font-geist-sans",
@@ -13,22 +19,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Meme Wall - Digital Meme Real Estate",
-  description: "The ultimate digital meme real estate platform on Solana. Own your piece of meme history forever.",
-};
+// export const metadata = {
+//   title: "Meme Wall - Digital Meme Real Estate",
+//   description: "The ultimate digital meme real estate platform on Solana. Own your piece of meme history forever.",
+// };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
+  // Set to devnet for testing
+  const network = WalletAdapterNetwork.Devnet;
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+
   return (
     <html lang="en">
       <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
-        <WalletProvider>
-          {children}
-        </WalletProvider>
+        <ConnectionProvider endpoint={endpoint}>
+          <WalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>
+              {children}
+            </WalletModalProvider>
+          </WalletProvider>
+        </ConnectionProvider>
       </body>
     </html>
   );

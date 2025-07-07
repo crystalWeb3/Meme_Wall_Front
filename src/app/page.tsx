@@ -1,43 +1,80 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { motion } from 'framer-motion';
 import { ExternalLink, TrendingUp } from 'lucide-react';
+import Image from 'next/image';
 import MemeGrid from '@/components/MemeGrid';
 import MintModal from '@/components/MintModal';
-import Image from 'next/image';
+import { useMemeWall } from '@/hooks/useMemeWall';
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 export default function Home() {
   const { connected } = useWallet();
   const [isMintModalOpen, setIsMintModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [slotsRemaining] = useState(6213); // Mock data - replace with real blockchain data
+  const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
+  
+  // Use simulated blockchain data
+  const { globalState, slots, loading, mintSlot, isWalletWhitelisted } = useMemeWall();
+  
+  // Calculate slots remaining from blockchain data
+  const slotsRemaining = globalState ? globalState.totalSlots - globalState.mintedSlots : 10000;
 
-  // Mock data for top 3 featured meme slots
+  // Check for slot parameter in URL on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const slotParam = urlParams.get('slot');
+    if (slotParam) {
+      const slotNumber = parseInt(slotParam);
+      if (!isNaN(slotNumber) && slotNumber >= 1 && slotNumber <= 10000) {
+        setHighlightedSlot(slotNumber);
+        // Scroll to the slot after a short delay to ensure the grid is loaded
+        setTimeout(() => {
+          const slotElement = document.querySelector(`[data-slot="${slotNumber}"]`);
+          if (slotElement) {
+            slotElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Add a highlight effect
+            slotElement.classList.add('ring-4', 'ring-yellow-400', 'ring-opacity-75');
+            setTimeout(() => {
+              slotElement.classList.remove('ring-4', 'ring-yellow-400', 'ring-opacity-75');
+            }, 3000);
+          }
+        }, 1000);
+      }
+    }
+  }, []);
+
+  // Mock data for top 3 featured meme slots (since we don't have voting yet)
   const featuredSlots = [
     { 
       id: 1, 
       title: "PEPE", 
       votes: 1250, 
       image: "https://picsum.photos/400/300?random=1",
-      owner: "0x1234...5678"
+      owner: "0x1234...5678",
+      price: "0.01 SOL",
+      marketCap: "$2.5M"
     },
     { 
       id: 2, 
       title: "DOGE", 
       votes: 980, 
       image: "https://picsum.photos/400/300?random=2",
-      owner: "0x8765...4321"
+      owner: "0x8765...4321",
+      price: "0.01 SOL",
+      marketCap: "$1.8M"
     },
     { 
       id: 3, 
       title: "SHIB", 
       votes: 750, 
       image: "https://picsum.photos/400/300?random=3",
-      owner: "0x9999...8888"
+      owner: "0x9999...8888",
+      price: "0.01 SOL",
+      marketCap: "$1.2M"
     },
   ];
 
@@ -76,7 +113,7 @@ export default function Home() {
           
           {/* Top Right - Slot Meter */}
           <div className="text-5xl font-bold text-yellow-400">
-            {slotsRemaining.toLocaleString()} slots left
+            {loading ? "Loading..." : `${slotsRemaining.toLocaleString()} slots left`}
           </div>
         </div>
 
@@ -105,6 +142,21 @@ export default function Home() {
           </div>
         </nav>
       </header>
+
+      {/* Blockchain Status */}
+      {globalState && (
+        <div className="container mx-auto px-4 mb-4">
+          <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 text-center">
+            <div className="text-green-400 font-semibold">✅ Real Blockchain - Devnet</div>
+            <div className="text-sm text-gray-300">
+              Total Slots: {globalState.totalSlots.toLocaleString()} | 
+              Minted: {globalState.mintedSlots.toLocaleString()} | 
+              Phase: {globalState.phase} | 
+              Price: {globalState.mintPrice} SOL
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Featured Meme Slots - Top 3 Most Upvoted */}
       <section className="container mx-auto px-4 mb-12">
@@ -166,6 +218,13 @@ export default function Home() {
                     <span>Pump.fun</span>
                   </motion.button>
                 </div>
+                
+                {/* Additional Info */}
+                <div className="mt-3 text-center">
+                  <div className="text-xs text-gray-400">
+                    <span className="text-yellow-400 font-medium">{slot.price}</span> • Market Cap: <span className="text-green-400 font-medium">{slot.marketCap}</span>
+                  </div>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -181,7 +240,9 @@ export default function Home() {
         <div className="max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-400 scrollbar-track-gray-800 rounded-lg">
           <MemeGrid 
             onSlotClick={handleSlotClick}
-            isLaunched={true}
+            blockchainSlots={slots}
+            loading={loading}
+            highlightedSlot={highlightedSlot}
           />
         </div>
       </section>
@@ -195,6 +256,9 @@ export default function Home() {
             setIsMintModalOpen(false);
             setSelectedSlot(null);
           }}
+          onMint={(slotNumber, metadataUri, mint, wallet) => mintSlot(slotNumber, metadataUri, mint, wallet)}
+          isWalletWhitelisted={isWalletWhitelisted}
+          globalState={globalState}
         />
       )}
     </div>
