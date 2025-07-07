@@ -5,7 +5,7 @@ import { Program, AnchorProvider, Idl } from '@coral-xyz/anchor';
 import { IDL } from '../idl/meme_wall';
 
 // Program ID
-const PROGRAM_ID = new PublicKey("3GYFAZwmiaisxDrLuEufKSn7wm56UVsSZSKrJyCXerS9");
+const PROGRAM_ID = new PublicKey("3Pdj6A1v7HpFCi6JHN1St74hSyaDriGjBoVkkNVYjZKV");
 
 export const useAnchorProgram = () => {
   // Prevent SSR hydration errors by only running on client

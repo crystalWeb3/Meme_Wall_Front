@@ -4,7 +4,7 @@ import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import IDL from "../../../target/idl/meme_wall.json";
 
 // Program ID from devnet deployment
-export const PROGRAM_ID = new PublicKey("3GYFAZwmiaisxDrLuEufKSn7wm56UVsSZSKrJyCXerS9");
+export const PROGRAM_ID = new PublicKey("3Pdj6A1v7HpFCi6JHN1St74hSyaDriGjBoVkkNVYjZKV");
 
 // Connection to devnet
 export const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
