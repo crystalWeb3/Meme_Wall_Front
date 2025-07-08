@@ -43,9 +43,9 @@ export const useAnchorProgram = () => {
         
         // Try to access it differently
         try {
-          const slotAccount = (prog.account as any)['Slot'];
+          const slotAccount = (prog.account as Record<string, any>)['Slot'];
           console.log('Slot account via bracket notation:', slotAccount);
-        } catch (e) {
+        } catch {
           console.log('Slot account not accessible via bracket notation either');
         }
       }

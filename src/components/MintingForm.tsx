@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useMemeWall, MintFormData } from '../hooks/useMemeWall';
+import Image from 'next/image';
 
 interface MintingFormProps {
   slotNumber: number;
@@ -32,7 +33,7 @@ export const MintingForm: React.FC<MintingFormProps> = ({
     initializeServices();
   }, [initializeServices]);
 
-  const handleInputChange = (field: keyof MintFormData, value: any) => {
+  const handleInputChange = (field: keyof MintFormData, value: string | File | Array<{ trait_type: string; value: string }>) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -155,9 +156,11 @@ export const MintingForm: React.FC<MintingFormProps> = ({
             />
             {formData.image && (
               <div className="mt-2">
-                <img
+                <Image
                   src={URL.createObjectURL(formData.image)}
                   alt="Preview"
+                  width={128}
+                  height={128}
                   className="w-32 h-32 object-cover rounded-md"
                 />
               </div>

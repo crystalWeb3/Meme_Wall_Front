@@ -3,8 +3,8 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Image as Link, DollarSign } from 'lucide-react';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-// import Image from 'next/image';
+import { useWallet } from '@solana/wallet-adapter-react';
+import Image from 'next/image';
 // import { PublicKey } from '@solana/web3.js';
 import SuccessModal from './SuccessModal';
 
@@ -34,12 +34,11 @@ interface MintModalProps {
     slotAccountAddress?: string;
   }>;
   isWalletWhitelisted?: (walletAddress: string) => boolean;
-  globalState?: { phase: { whitelist?: {} } | { public?: {} } } | null;
+  globalState?: { phase: { whitelist?: object } | { public?: object } } | null;
 }
 
 export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalletWhitelisted, globalState }: MintModalProps) {
-  const { connected, publicKey, signTransaction } = useWallet();
-  const { connection } = useConnection();
+  const { connected, publicKey } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successData, setSuccessData] = useState<{
@@ -289,9 +288,11 @@ export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalle
                 >
                   {imagePreview ? (
                     <div className="space-y-2">
-                      <img 
+                      <Image 
                         src={imagePreview} 
                         alt="Preview" 
+                        width={128}
+                        height={128}
                         className="w-32 h-32 object-cover rounded-lg mx-auto"
                       />
                       <p className="text-sm text-gray-400">Click to change image</p>

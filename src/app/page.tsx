@@ -18,7 +18,7 @@ export default function Home() {
   const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
   
   // Use simulated blockchain data
-  const { globalState, slots, loading, mintSlot, isWalletWhitelisted } = useMemeWall();
+  const { globalState, slots, loading, mintSlot } = useMemeWall();
   
   // Calculate slots remaining from blockchain data
   const slotsRemaining = globalState ? globalState.totalSlots - globalState.mintedSlots : 10000;
@@ -183,9 +183,11 @@ export default function Home() {
               
               {/* Meme Image */}
               <div className="w-full h-64 mb-4 rounded-lg overflow-hidden">
-                <img 
+                <Image 
                   src={slot.image} 
                   alt={slot.title}
+                  width={400}
+                  height={300}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 />
               </div>
@@ -285,7 +287,7 @@ export default function Home() {
               };
             }
           }}
-          isWalletWhitelisted={(walletAddress: string) => true}
+          isWalletWhitelisted={() => true}
           globalState={globalState}
         />
       )}

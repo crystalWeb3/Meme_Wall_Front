@@ -34,7 +34,7 @@ export class UploadService {
       // Check if API key is available
       if (!NFT_STORAGE_TOKEN) {
         console.warn('⚠️ NFT.Storage API key not configured, using fallback URL');
-        return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/readme';
+        return 'https://ipfs.io/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/readme';
       }
       
       console.log('📤 Starting image upload to IPFS...');
@@ -65,7 +65,7 @@ export class UploadService {
       }
       
       const result = await response.json();
-      const ipfsUrl = `ipfs://${result.value.cid}/${file.name}`;
+              const ipfsUrl = `https://ipfs.io/ipfs/${result.value.cid}/${file.name}`;
       const gatewayUrl = `https://ipfs.io/ipfs/${result.value.cid}/${file.name}`;
       
       console.log('✅ Image uploaded successfully!');
@@ -79,7 +79,7 @@ export class UploadService {
     } catch (error) {
       console.error('Error uploading to IPFS:', error);
       // Fallback: return a real IPFS URL
-      return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/readme';
+      return 'https://ipfs.io/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/readme';
     }
   }
 
@@ -88,7 +88,7 @@ export class UploadService {
       // Check if API key is available
       if (!NFT_STORAGE_TOKEN) {
         console.warn('⚠️ NFT.Storage API key not configured, using fallback URL');
-        return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/metadata.json';
+        return 'https://ipfs.io/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/metadata.json';
       }
       
       console.log('📤 Starting metadata upload to IPFS...');
@@ -119,7 +119,7 @@ export class UploadService {
       }
       
       const result = await response.json();
-      const ipfsUrl = `ipfs://${result.value.cid}/metadata.json`;
+              const ipfsUrl = `https://ipfs.io/ipfs/${result.value.cid}/metadata.json`;
       const gatewayUrl = `https://ipfs.io/ipfs/${result.value.cid}/metadata.json`;
       
       console.log('✅ Metadata uploaded successfully!');
@@ -133,7 +133,7 @@ export class UploadService {
     } catch (error) {
       console.error('Error uploading metadata to IPFS:', error);
       // Fallback: return a real IPFS URL
-      return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/metadata.json';
+              return 'https://ipfs.io/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/metadata.json';
     }
   }
 

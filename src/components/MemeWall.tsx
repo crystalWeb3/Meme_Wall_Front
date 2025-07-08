@@ -3,13 +3,19 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useMemeWall } from '../hooks/useMemeWall';
 import { MintingForm } from './MintingForm';
 import { NFTDetailsModal } from './NFTDetailsModal';
-import { PublicKey } from '@solana/web3.js';
+
 
 export const MemeWall: React.FC = () => {
   const { publicKey } = useWallet();
   const { slots, currentPhase, isLoading, error, fetchSlots, checkWhitelistStatus } = useMemeWall();
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [selectedNFT, setSelectedNFT] = useState<any>(null);
+  const [selectedNFT, setSelectedNFT] = useState<{
+    slotNumber: number;
+    owner: string;
+    mint: string;
+    metadataUri: string;
+    isMinted: boolean;
+  } | null>(null);
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -45,7 +51,13 @@ export const MemeWall: React.FC = () => {
     setSelectedSlot(null);
   };
 
-  const handleNFTClick = (slot: any) => {
+  const handleNFTClick = (slot: {
+    slotNumber: number;
+    owner: string;
+    mint: string;
+    metadataUri: string;
+    isMinted: boolean;
+  }) => {
     setSelectedNFT(slot);
   };
 
@@ -53,18 +65,25 @@ export const MemeWall: React.FC = () => {
     setSelectedNFT(null);
   };
 
-  const canMint = (slot: any) => {
-    if (!slot.isMinted) return true;
-    return publicKey && slot.owner === publicKey.toString();
-  };
-
-  const getSlotStatus = (slot: any) => {
+  const getSlotStatus = (slot: {
+    slotNumber: number;
+    owner: string;
+    mint: string;
+    metadataUri: string;
+    isMinted: boolean;
+  }) => {
     if (!slot.isMinted) return 'Available';
     if (publicKey && slot.owner === publicKey.toString()) return 'Yours';
     return 'Minted';
   };
 
-  const getSlotStatusColor = (slot: any) => {
+  const getSlotStatusColor = (slot: {
+    slotNumber: number;
+    owner: string;
+    mint: string;
+    metadataUri: string;
+    isMinted: boolean;
+  }) => {
     if (!slot.isMinted) return 'bg-green-100 text-green-800';
     if (publicKey && slot.owner === publicKey.toString()) return 'bg-blue-100 text-blue-800';
     return 'bg-gray-100 text-gray-800';

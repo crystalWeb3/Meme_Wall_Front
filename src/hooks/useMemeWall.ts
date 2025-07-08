@@ -9,7 +9,7 @@ import { NFTService } from '../services/nftService';
 export interface GlobalState {
   totalSlots: number;
   mintedSlots: number;
-  phase: { whitelist?: {} } | { public?: {} };
+  phase: { whitelist?: object } | { public?: object };
   mintPrice: number;
   authority: string;
   whitelist: string[];
@@ -117,7 +117,7 @@ export const useMemeWall = () => {
       );
       
       try {
-        const latestGlobalState = await (program.account as any).globalState.fetch(globalStatePda);
+        const latestGlobalState = await (program.account as Record<string, any>).globalState.fetch(globalStatePda);
         console.log('🔍 Latest phase object:', latestGlobalState.phase);
         
         let latestPhase: 'Whitelist' | 'Public' = 'Whitelist';
@@ -130,7 +130,7 @@ export const useMemeWall = () => {
         }
         console.log('📋 Latest phase from blockchain:', latestPhase);
         setCurrentPhase(latestPhase);
-      } catch (error) {
+      } catch {
         console.log('⚠️ Could not refresh phase, using current:', currentPhase);
       }
       
@@ -167,11 +167,11 @@ export const useMemeWall = () => {
       // Fetch the current admin from global state
       let currentAdmin: PublicKey;
       try {
-        const globalStateAccount = await (program.account as any).globalState.fetch(globalStatePda);
+        const globalStateAccount = await (program.account as Record<string, any>).globalState.fetch(globalStatePda);
         currentAdmin = globalStateAccount.admin;
         console.log('✅ Admin fetched from blockchain:', currentAdmin.toString());
-      } catch (error) {
-        console.error('❌ Failed to fetch admin from global state:', error);
+      } catch {
+        console.error('❌ Failed to fetch admin from global state');
         throw new Error('Failed to fetch admin address from blockchain');
       }
 
@@ -288,7 +288,7 @@ export const useMemeWall = () => {
       // Use any to bypass type checking but still fetch real data
       let blockchainGlobalState;
       try {
-        blockchainGlobalState = await (program.account as any).globalState.fetch(globalStatePda);
+        blockchainGlobalState = await (program.account as Record<string, any>).globalState.fetch(globalStatePda);
         console.log('✅ Global state fetched:', blockchainGlobalState);
         console.log('🔍 Phase object:', blockchainGlobalState.phase);
         console.log('🔍 Phase object keys:', Object.keys(blockchainGlobalState.phase || {}));
@@ -309,7 +309,7 @@ export const useMemeWall = () => {
         }
         console.log('📋 Final detected phase:', phaseString);
         setCurrentPhase(phaseString);
-      } catch (error) {
+      } catch {
         console.log('⚠️ Global state not initialized yet, using default values');
         // Use default values if global state is not initialized
         blockchainGlobalState = {
@@ -359,8 +359,64 @@ export const useMemeWall = () => {
           
           // Try to fetch the slot account with proper error handling
           let slotAccount;
+          
+          // Debug: Log available accounts
+          console.log('🔍 Available program accounts:', Object.keys(program.account));
+          
           try {
-            slotAccount = await (program.account as any).Slot.fetch(slotPda);
+            // Try different ways to access the Slot account
+            if ((program.account as any).Slot) {
+              slotAccount = await (program.account as any).Slot.fetch(slotPda);
+            } else if ((program.account as any)['Slot']) {
+              slotAccount = await (program.account as any)['Slot'].fetch(slotPda);
+            } else if ((program.account as any).slot) {
+              slotAccount = await (program.account as any).slot.fetch(slotPda);
+            } else {
+              console.log('⚠️ Slot account not accessible via program.account, trying raw account data...');
+              // Fallback: try to get account data directly
+              const accountInfo = await connection.getAccountInfo(slotPda);
+              if (accountInfo && accountInfo.data.length > 8) {
+                // Parse the account data manually
+                let offset = 8; // Skip discriminator
+                const slotNumberData = accountInfo.data.readUInt16LE(offset);
+                offset += 2;
+                const owner = new PublicKey(accountInfo.data.slice(offset, offset + 32));
+                offset += 32;
+                const mint = new PublicKey(accountInfo.data.slice(offset, offset + 32));
+                offset += 32;
+                
+                // Parse the metadata URI (string)
+                let metadataUri = '';
+                if (offset < accountInfo.data.length) {
+                  try {
+                    // Read string length (4 bytes for u32)
+                    const stringLength = accountInfo.data.readUInt32LE(offset);
+                    offset += 4;
+                    
+                    // Read the string data
+                    if (offset + stringLength <= accountInfo.data.length) {
+                      const stringData = accountInfo.data.slice(offset, offset + stringLength);
+                      metadataUri = stringData.toString('utf8');
+                    }
+                  } catch (stringError) {
+                    console.log(`Could not parse metadata URI for slot ${slotNumber}:`, stringError);
+                    metadataUri = 'Unknown';
+                  }
+                }
+                
+                const bump = offset < accountInfo.data.length ? accountInfo.data.readUInt8(offset) : 0;
+                
+                slotAccount = {
+                  slotNumber: slotNumberData,
+                  owner,
+                  mint,
+                  metadataUri,
+                  bump
+                };
+              } else {
+                throw new Error('Slot account not accessible in program and no raw data available');
+              }
+            }
           } catch (slotError) {
             console.error(`❌ Failed to fetch slot ${slotNumber} account:`, slotError);
             // If Slot account is not available, try to get basic info from the account data
@@ -456,10 +512,10 @@ export const useMemeWall = () => {
       }
       
       setSlots(fetchedSlots);
-    } catch (error) {
-      console.error('Error fetching slots:', error);
-      setError('Failed to fetch slots');
-    } finally {
+          } catch {
+        console.error('Error fetching slots');
+        setError('Failed to fetch slots');
+      } finally {
       setIsLoading(false);
     }
   }, [program, connection]);
@@ -471,8 +527,8 @@ export const useMemeWall = () => {
       // For now, return true (whitelisted) for demonstration
       console.log('🔍 Whitelist check: returning true for demonstration');
       return true;
-    } catch (error) {
-      console.error('Error checking whitelist:', error);
+    } catch {
+      console.error('Error checking whitelist');
       return false;
     }
   }, [program, publicKey]);
@@ -494,10 +550,10 @@ export const useMemeWall = () => {
         program.programId
       );
       
-      const blockchainGlobalState = await (program.account as any).globalState.fetch(globalStatePda);
+              const blockchainGlobalState = await (program.account as Record<string, any>).globalState.fetch(globalStatePda);
       return blockchainGlobalState.mintedSlotsArray || [];
-    } catch (error) {
-      console.error('Error fetching minted slots:', error);
+    } catch {
+      console.error('Error fetching minted slots');
       return [];
     }
   }, [program, connection]);

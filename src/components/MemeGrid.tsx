@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Crown } from 'lucide-react';
+import Image from 'next/image';
 // import { PublicKey } from '@solana/web3.js';
 
 interface MemeGridProps {
@@ -27,6 +28,12 @@ interface Slot {
   upvotes: number;
   downvotes: number;
   isFeatured?: boolean;
+}
+
+function toGatewayUrl(url: string) {
+  return url && url.startsWith('ipfs://')
+    ? url.replace('ipfs://', 'https://ipfs.io/ipfs/')
+    : url;
 }
 
 export default function MemeGrid({ onSlotClick, blockchainSlots = [], loading = false, highlightedSlot }: MemeGridProps) {
@@ -137,9 +144,11 @@ export default function MemeGrid({ onSlotClick, blockchainSlots = [], loading = 
               <div className="h-full p-2 flex flex-col">
                 {slot.image ? (
                   <div className="w-full h-3/4 rounded mb-1 overflow-hidden">
-                    <img 
-                      src={slot.image} 
+                    <Image 
+                      src={toGatewayUrl(slot.image)} 
                       alt={slot.title || `Slot ${slot.id}`}
+                      width={200}
+                      height={200}
                       className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
                     />
                   </div>

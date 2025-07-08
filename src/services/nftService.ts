@@ -2,7 +2,6 @@ import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import { 
   Metaplex, 
   keypairIdentity,
-  toMetaplexFile,
   findMetadataPda
 } from '@metaplex-foundation/js';
 import { MemeMetadata } from './uploadService';
