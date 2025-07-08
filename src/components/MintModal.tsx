@@ -12,9 +12,29 @@ interface MintModalProps {
   slotNumber: number;
   isOpen: boolean;
   onClose: () => void;
-  onMint?: (slotNumber: number, metadataUri: string, mint: string, wallet: any) => Promise<{ success: boolean; signature?: string; error?: string; explorerUrl?: string }>;
+  onMint?: (formData: {
+    slotNumber: number;
+    title: string;
+    description: string;
+    image: File | null;
+    tokenName: string;
+    tokenSymbol: string;
+    tokenDescription: string;
+    tokenImage: string;
+    tokenExternalUrl: string;
+    tokenAttributes: Array<{ trait_type: string; value: string }>;
+  }) => Promise<{ 
+    success: boolean; 
+    signature?: string; 
+    error?: string; 
+    explorerUrl?: string;
+    imageUrl?: string;
+    metadataUrl?: string;
+    nftMintAddress?: string;
+    slotAccountAddress?: string;
+  }>;
   isWalletWhitelisted?: (walletAddress: string) => boolean;
-  globalState?: { phase: 'Whitelist' | 'Public' } | null;
+  globalState?: { phase: { whitelist?: {} } | { public?: {} } } | null;
 }
 
 export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalletWhitelisted, globalState }: MintModalProps) {
@@ -27,6 +47,10 @@ export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalle
     signature: string;
     ownerAddress: string;
     explorerUrl?: string;
+    imageUrl?: string;
+    metadataUrl?: string;
+    nftMintAddress?: string;
+    slotAccountAddress?: string;
   } | null>(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -87,48 +111,42 @@ export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalle
     try {
       // Use real minting function if available, otherwise simulate
       if (onMint) {
-        // Generate proper metadata URI with all form data
-        const metadata = {
-          name: formData.title,
-          description: formData.description,
-          image: imagePreview, // This should be IPFS URL after upload
-          attributes: [
-            { trait_type: "Slot Number", value: slotNumber },
+        // Prepare form data for minting
+        const mintFormData = {
+          slotNumber,
+          title: formData.title || `Slot ${slotNumber}`,
+          description: formData.description || `Meme slot ${slotNumber}`,
+          image: formData.image,
+          tokenName: formData.title || `Slot ${slotNumber}`,
+          tokenSymbol: `SLOT${slotNumber}`,
+          tokenDescription: formData.description || `Meme slot ${slotNumber}`,
+          tokenImage: imagePreview || '',
+          tokenExternalUrl: formData.website || '',
+          tokenAttributes: [
+            { trait_type: "Slot Number", value: slotNumber.toString() },
             { trait_type: "Owner", value: publicKey.toString() },
             { trait_type: "DexScreener", value: formData.dexScreener || "" },
             { trait_type: "Pump.fun", value: formData.pumpFun || "" },
             { trait_type: "Website", value: formData.website || "" },
             { trait_type: "Twitter", value: formData.twitter || "" },
             { trait_type: "Telegram", value: formData.telegram || "" },
-          ],
-          properties: {
-            files: [
-              {
-                type: "image/png",
-                uri: imagePreview || ""
-              }
-            ]
-          }
+          ]
         };
         
-        // For now, use a simple metadata URI (in production, this would be uploaded to IPFS)
-        const metadataUri = `ipfs://${formData.title.replace(/\s+/g, '-').toLowerCase()}-${slotNumber}`;
+        console.log('📋 Sending form data to mint:', mintFormData);
         
-        // Generate a unique mint address for this slot
-        const mintAddress = `1111111111111111111111111111111${slotNumber.toString().padStart(2, '0')}`;
-        
-        console.log('📋 Generated metadata:', metadata);
-        console.log('🔗 Metadata URI:', metadataUri);
-        console.log('🪙 Mint address:', mintAddress);
-        
-        const result = await onMint(slotNumber, metadataUri, mintAddress, { publicKey, signTransaction });
+        const result = await onMint(mintFormData);
         
         if (result.success) {
           setSuccessData({
             slotNumber,
             signature: result.signature || 'simulated_signature',
             ownerAddress: publicKey.toString().slice(0, 8) + '...',
-            explorerUrl: result.explorerUrl
+            explorerUrl: result.explorerUrl,
+            imageUrl: result.imageUrl,
+            metadataUrl: result.metadataUrl,
+            nftMintAddress: result.nftMintAddress,
+            slotAccountAddress: result.slotAccountAddress
           });
           setShowSuccess(true);
           onClose();
@@ -220,7 +238,7 @@ export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalle
             </div>
 
             {/* Whitelist Status - Only show in Whitelist phase */}
-            {connected && publicKey && isWalletWhitelisted && globalState?.phase === 'Whitelist' && (
+            {connected && publicKey && isWalletWhitelisted && globalState?.phase && 'whitelist' in globalState.phase && (
               <div className={`rounded-lg p-4 mb-6 ${
                 isWalletWhitelisted(publicKey.toString()) 
                   ? 'bg-green-600/20 border border-green-500/30' 
@@ -248,7 +266,7 @@ export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalle
             )}
 
             {/* Public Phase Status */}
-            {connected && publicKey && globalState?.phase === 'Public' && (
+            {connected && publicKey && globalState?.phase && 'public' in globalState.phase && (
               <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4 mb-6">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-blue-400"></div>
@@ -400,6 +418,10 @@ export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalle
           transactionSignature={successData.signature}
           ownerAddress={successData.ownerAddress}
           explorerUrl={successData.explorerUrl}
+          imageUrl={successData.imageUrl}
+          metadataUrl={successData.metadataUrl}
+          nftMintAddress={successData.nftMintAddress}
+          slotAccountAddress={successData.slotAccountAddress}
         />
       )}
     </AnimatePresence>

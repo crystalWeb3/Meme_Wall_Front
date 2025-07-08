@@ -11,6 +11,10 @@ interface SuccessModalProps {
   transactionSignature: string;
   ownerAddress: string;
   explorerUrl?: string;
+  imageUrl?: string;
+  metadataUrl?: string;
+  nftMintAddress?: string;
+  slotAccountAddress?: string;
 }
 
 export default function SuccessModal({ 
@@ -19,7 +23,11 @@ export default function SuccessModal({
   slotNumber, 
   transactionSignature, 
   ownerAddress,
-  explorerUrl: propExplorerUrl
+  explorerUrl: propExplorerUrl,
+  imageUrl,
+  metadataUrl,
+  nftMintAddress,
+  slotAccountAddress
 }: SuccessModalProps) {
   const [copied, setCopied] = useState(false);
   
@@ -121,6 +129,58 @@ export default function SuccessModal({
                 <span>View My Slot</span>
               </motion.button>
 
+              {/* View Image Button */}
+              {imageUrl && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => window.open(imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/'), '_blank')}
+                  className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  <span>View Image on IPFS</span>
+                </motion.button>
+              )}
+
+              {/* View Metadata Button */}
+              {metadataUrl && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => window.open(metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/'), '_blank')}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  <span>View Metadata on IPFS</span>
+                </motion.button>
+              )}
+
+              {/* View NFT Button */}
+              {nftMintAddress && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => window.open(`https://explorer.solana.com/address/${nftMintAddress}?cluster=devnet`, '_blank')}
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  <span>View NFT on Explorer</span>
+                </motion.button>
+              )}
+
+              {/* View Slot Account Button */}
+              {slotAccountAddress && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => window.open(`https://explorer.solana.com/address/${slotAccountAddress}?cluster=devnet`, '_blank')}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  <span>View Slot Account</span>
+                </motion.button>
+              )}
+
               {/* Share Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -151,7 +211,7 @@ export default function SuccessModal({
                 className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <ExternalLink className="w-5 h-5" />
-                <span>View on Explorer</span>
+                <span>View Transaction on Explorer</span>
               </motion.button>
             </div>
 

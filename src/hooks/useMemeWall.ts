@@ -9,7 +9,7 @@ import { NFTService } from '../services/nftService';
 export interface GlobalState {
   totalSlots: number;
   mintedSlots: number;
-  phase: 'Whitelist' | 'Public';
+  phase: { whitelist?: {} } | { public?: {} };
   mintPrice: number;
   authority: string;
   whitelist: string[];
@@ -43,7 +43,7 @@ export const useMemeWall = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
-  const [currentPhase, setCurrentPhase] = useState<'Whitelist' | 'Public'>('Public');
+  const [currentPhase, setCurrentPhase] = useState<'Whitelist' | 'Public'>('Whitelist');
   const [globalState, setGlobalState] = useState<GlobalState | null>(null);
 
   // Initialize services
@@ -107,6 +107,33 @@ export const useMemeWall = () => {
 
       // Step 5: Call smart contract to register the slot
       console.log('📋 Registering slot in smart contract...');
+      console.log('🏗️  Program ID:', program.programId.toString());
+      
+      // Refresh phase from blockchain to ensure we have the latest
+      console.log('🔄 Refreshing phase from blockchain...');
+      const [globalStatePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from('global-state')],
+        program.programId
+      );
+      
+      try {
+        const latestGlobalState = await (program.account as any).globalState.fetch(globalStatePda);
+        console.log('🔍 Latest phase object:', latestGlobalState.phase);
+        
+        let latestPhase: 'Whitelist' | 'Public' = 'Whitelist';
+        if (latestGlobalState.phase) {
+          if (latestGlobalState.phase.public !== undefined) {
+            latestPhase = 'Public';
+          } else if (latestGlobalState.phase.whitelist !== undefined) {
+            latestPhase = 'Whitelist';
+          }
+        }
+        console.log('📋 Latest phase from blockchain:', latestPhase);
+        setCurrentPhase(latestPhase);
+      } catch (error) {
+        console.log('⚠️ Could not refresh phase, using current:', currentPhase);
+      }
+      
       const [slotPda] = PublicKey.findProgramAddressSync(
         [
           Buffer.from('slot'),
@@ -115,24 +142,45 @@ export const useMemeWall = () => {
         program.programId
       );
 
-      const [globalStatePda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('global_state')],
-        program.programId
-      );
-
       const [whitelistPda] = PublicKey.findProgramAddressSync(
         [Buffer.from('whitelist')],
         program.programId
       );
+      
+      console.log('📍 PDAs:');
+      console.log('  🎯 Slot PDA:', slotPda.toString());
+      console.log('  🌐 Global State PDA:', globalStatePda.toString());
+      console.log('  📋 Whitelist PDA:', whitelistPda.toString());
+      console.log('🔗 Solana Explorer Links:');
+      console.log('  🎯 Slot Account:', `https://explorer.solana.com/address/${slotPda.toString()}?cluster=devnet`);
+      console.log('  🌐 Global State:', `https://explorer.solana.com/address/${globalStatePda.toString()}?cluster=devnet`);
+      console.log('  📋 Whitelist:', `https://explorer.solana.com/address/${whitelistPda.toString()}?cluster=devnet`);
 
       // Prepare transaction
       const tx = new Transaction();
       
+      // Get recent blockhash (required for transaction)
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+      
+      // Fetch the current admin from global state
+      let currentAdmin: PublicKey;
+      try {
+        const globalStateAccount = await (program.account as any).globalState.fetch(globalStatePda);
+        currentAdmin = globalStateAccount.admin;
+        console.log('✅ Admin fetched from blockchain:', currentAdmin.toString());
+      } catch (error) {
+        console.error('❌ Failed to fetch admin from global state:', error);
+        throw new Error('Failed to fetch admin address from blockchain');
+      }
+
       // Add mint slot instruction
       const accounts: any = {
         slot: slotPda,
         globalState: globalStatePda,
-        minter: publicKey,
+        payer: publicKey, // Changed from 'minter' to 'payer'
+        admin: currentAdmin, // Admin from on-chain global state
         systemProgram: SystemProgram.programId,
       };
 
@@ -141,18 +189,38 @@ export const useMemeWall = () => {
         accounts.whitelist = whitelistPda;
       }
 
+      console.log('📋 Transaction accounts:', accounts);
+      console.log('🔑 Admin account:', accounts.admin.toString());
+      console.log('👛 Payer account:', accounts.payer.toString());
+      console.log('🎯 Current phase:', currentPhase);
+      console.log('🪙 NFT Mint address:', nftResult.mint.toString());
+      console.log('📄 Metadata URL:', metadataUrl);
+      console.log('🔢 Slot number:', formData.slotNumber);
+
       const mintSlotIx = await program.methods
         .mintSlot(formData.slotNumber, metadataUrl, nftResult.mint)
         .accounts(accounts)
         .instruction();
+        
+      console.log('✅ Instruction created successfully');
 
       tx.add(mintSlotIx);
+      
+      console.log('📦 Transaction built with instruction');
+      console.log('🔍 Transaction details:', {
+        instructions: tx.instructions.length,
+        signers: tx.signatures.length,
+        recentBlockhash: tx.recentBlockhash ? 'Set' : 'Not set'
+      });
 
       // Send transaction
+      console.log('🚀 Sending transaction...');
       const signature = await sendTransaction(tx, connection);
       console.log('✅ Transaction sent:', signature);
+      console.log('🔗 Transaction Explorer:', `https://explorer.solana.com/tx/${signature}?cluster=devnet`);
 
       // Wait for confirmation
+      console.log('⏳ Waiting for transaction confirmation...');
       const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       if (confirmation.value.err) {
         throw new Error('Transaction failed');
@@ -162,8 +230,14 @@ export const useMemeWall = () => {
       console.log('🪙 NFT Mint:', nftResult.mint.toString());
       console.log('📄 Metadata:', metadataUrl);
       console.log('🔗 Transaction:', signature);
+      console.log('🔗 Final Links:');
+      console.log('  🎯 Slot Account:', `https://explorer.solana.com/address/${slotPda.toString()}?cluster=devnet`);
+      console.log('  🪙 NFT Mint:', `https://explorer.solana.com/address/${nftResult.mint.toString()}?cluster=devnet`);
+      console.log('  📄 Transaction:', `https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+      console.log('  🖼️  Image Gateway:', metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/'));
+      console.log('  📋 Metadata Gateway:', metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/'));
 
-      // Update local state
+      // Update local state immediately for better UX
       const newSlot: Slot = {
         slotNumber: formData.slotNumber,
         owner: publicKey.toString(),
@@ -172,7 +246,17 @@ export const useMemeWall = () => {
         isMinted: true,
       };
 
-      // Refresh slots from blockchain to get the latest state
+      // Update local slots state immediately
+      setSlots(prevSlots => {
+        const updatedSlots = [...prevSlots];
+        const slotIndex = formData.slotNumber - 1; // Convert to 0-based index
+        if (slotIndex >= 0 && slotIndex < updatedSlots.length) {
+          updatedSlots[slotIndex] = newSlot;
+        }
+        return updatedSlots;
+      });
+
+      // Also refresh from blockchain to ensure consistency
       await fetchSlots();
 
       return {
@@ -197,12 +281,46 @@ export const useMemeWall = () => {
     try {
       setIsLoading(true);
       const [globalStatePda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('global_state')],
+        [Buffer.from('global-state')],
         program.programId
       );
+      
       // Use any to bypass type checking but still fetch real data
-      const blockchainGlobalState = await (program.account as any).GlobalState.fetch(globalStatePda);
-      setCurrentPhase(blockchainGlobalState.phase);
+      let blockchainGlobalState;
+      try {
+        blockchainGlobalState = await (program.account as any).globalState.fetch(globalStatePda);
+        console.log('✅ Global state fetched:', blockchainGlobalState);
+        console.log('🔍 Phase object:', blockchainGlobalState.phase);
+        console.log('🔍 Phase object keys:', Object.keys(blockchainGlobalState.phase || {}));
+        console.log('🔍 Phase object values:', Object.values(blockchainGlobalState.phase || {}));
+        
+        // Convert phase object to string - check both properties
+        let phaseString: 'Whitelist' | 'Public' = 'Whitelist'; // default
+        if (blockchainGlobalState.phase) {
+          if (blockchainGlobalState.phase.public !== undefined) {
+            phaseString = 'Public';
+            console.log('✅ Detected Public phase');
+          } else if (blockchainGlobalState.phase.whitelist !== undefined) {
+            phaseString = 'Whitelist';
+            console.log('✅ Detected Whitelist phase');
+          } else {
+            console.log('⚠️ Unknown phase structure:', blockchainGlobalState.phase);
+          }
+        }
+        console.log('📋 Final detected phase:', phaseString);
+        setCurrentPhase(phaseString);
+      } catch (error) {
+        console.log('⚠️ Global state not initialized yet, using default values');
+        // Use default values if global state is not initialized
+        blockchainGlobalState = {
+          totalSlots: 10000,
+          mintedSlots: 0,
+          phase: { whitelist: {} },
+          admin: PublicKey.default,
+          mintedSlotsArray: [],
+        };
+        setCurrentPhase('Whitelist');
+      }
 
       // Set global state for the main page
       setGlobalState({
@@ -218,40 +336,104 @@ export const useMemeWall = () => {
         totalSlots: blockchainGlobalState.totalSlots,
         mintedSlots: blockchainGlobalState.mintedSlots,
         phase: blockchainGlobalState.phase,
-        admin: blockchainGlobalState.admin.toString()
+        admin: blockchainGlobalState.admin.toString(),
+        mintedSlotsArray: blockchainGlobalState.mintedSlotsArray || []
       });
 
       const fetchedSlots: Slot[] = [];
-      // Only fetch first 100 slots for performance, but check all slots for minted ones
-      const slotsToCheck = Math.min(100, blockchainGlobalState.totalSlots);
+      const mintedSlotsSet = new Set(blockchainGlobalState.mintedSlotsArray || []);
       
-      for (let i = 1; i <= slotsToCheck; i++) {
+      // Create a map of minted slots for efficient lookup
+      const mintedSlotsMap = new Map<number, any>();
+      
+      // Fetch only the minted slots (much more efficient!)
+      for (const slotNumber of mintedSlotsSet) {
         try {
           const [slotPda] = PublicKey.findProgramAddressSync(
             [
               Buffer.from('slot'),
-              new BN(i).toArrayLike(Buffer, 'le', 2),
+              new BN(Number(slotNumber)).toArrayLike(Buffer, 'le', 2),
             ],
             program.programId
           );
           
-          const slotAccount = await (program.account as any).Slot.fetch(slotPda);
-          console.log(`✅ Slot ${i} is minted:`, {
+          // Try to fetch the slot account with proper error handling
+          let slotAccount;
+          try {
+            slotAccount = await (program.account as any).Slot.fetch(slotPda);
+          } catch (slotError) {
+            console.error(`❌ Failed to fetch slot ${slotNumber} account:`, slotError);
+            // If Slot account is not available, try to get basic info from the account data
+            const slotInfo = await connection.getAccountInfo(slotPda);
+            if (slotInfo && slotInfo.data.length > 8) {
+              // Parse basic slot data manually
+              let offset = 8; // Skip discriminator
+              const slotNumberData = slotInfo.data.readUInt16LE(offset);
+              offset += 2;
+              const owner = new PublicKey(slotInfo.data.slice(offset, offset + 32));
+              offset += 32;
+              const mint = new PublicKey(slotInfo.data.slice(offset, offset + 32));
+              offset += 32;
+              
+              // Parse the metadata URI (string)
+              let metadataUri = '';
+              if (offset < slotInfo.data.length) {
+                try {
+                  // Read string length (4 bytes for u32)
+                  const stringLength = slotInfo.data.readUInt32LE(offset);
+                  offset += 4;
+                  
+                  // Read the string data
+                  if (offset + stringLength <= slotInfo.data.length) {
+                    const stringData = slotInfo.data.slice(offset, offset + stringLength);
+                    metadataUri = stringData.toString('utf8');
+                  }
+                } catch (stringError) {
+                  console.log(`Could not parse metadata URI for slot ${slotNumber}:`, stringError);
+                  metadataUri = 'Unknown';
+                }
+              }
+              
+              const bump = offset < slotInfo.data.length ? slotInfo.data.readUInt8(offset) : 0;
+              
+              slotAccount = {
+                slotNumber: slotNumberData,
+                owner,
+                mint,
+                metadataUri,
+                bump
+              };
+            } else {
+              throw slotError;
+            }
+          }
+          console.log(`✅ Slot ${slotNumber} is minted:`, {
             owner: slotAccount.owner.toString(),
             mint: slotAccount.mint.toString(),
             metadataUri: slotAccount.metadataUri
           });
           
-          fetchedSlots.push({
-            slotNumber: i,
+          mintedSlotsMap.set(Number(slotNumber), {
+            slotNumber: Number(slotNumber),
             owner: slotAccount.owner.toString(),
             metadataUri: slotAccount.metadataUri,
             mint: slotAccount.mint.toString(),
             isMinted: true,
           });
         } catch (error) {
-          // Slot not minted yet
-          console.log(`❌ Slot ${i} is not minted yet`);
+          console.error(`❌ Failed to fetch slot ${slotNumber}:`, error);
+        }
+      }
+
+      // Build the complete slots array
+      const slotsToDisplay = Math.min(100, blockchainGlobalState.totalSlots);
+      
+      for (let i = 1; i <= slotsToDisplay; i++) {
+        if (mintedSlotsMap.has(i)) {
+          // Slot is minted
+          fetchedSlots.push(mintedSlotsMap.get(i));
+        } else {
+          // Slot is not minted
           fetchedSlots.push({
             slotNumber: i,
             owner: PublicKey.default.toString(),
@@ -261,17 +443,18 @@ export const useMemeWall = () => {
           });
         }
       }
+
+      // Add remaining slots as unminted for display
+      for (let i = slotsToDisplay + 1; i <= blockchainGlobalState.totalSlots; i++) {
+        fetchedSlots.push({
+          slotNumber: i,
+          owner: PublicKey.default.toString(),
+          metadataUri: '',
+          mint: PublicKey.default.toString(),
+          isMinted: false,
+        });
+      }
       
-              // Add remaining slots as unminted for display
-        for (let i = slotsToCheck + 1; i <= blockchainGlobalState.totalSlots; i++) {
-          fetchedSlots.push({
-            slotNumber: i,
-            owner: PublicKey.default.toString(),
-            metadataUri: '',
-            mint: PublicKey.default.toString(),
-            isMinted: false,
-          });
-        }
       setSlots(fetchedSlots);
     } catch (error) {
       console.error('Error fetching slots:', error);
@@ -301,10 +484,29 @@ export const useMemeWall = () => {
     }
   }, [program, fetchSlots]);
 
+  // Helper function to get all minted slots efficiently
+  const getMintedSlots = useCallback(async () => {
+    if (!program || !connection) return [];
+
+    try {
+      const [globalStatePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from('global-state')],
+        program.programId
+      );
+      
+      const blockchainGlobalState = await (program.account as any).globalState.fetch(globalStatePda);
+      return blockchainGlobalState.mintedSlotsArray || [];
+    } catch (error) {
+      console.error('Error fetching minted slots:', error);
+      return [];
+    }
+  }, [program, connection]);
+
   return {
     mintSlot,
     fetchSlots,
     checkWhitelistStatus,
+    getMintedSlots,
     slots,
     currentPhase,
     isLoading,

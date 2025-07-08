@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useMemeWall } from '../hooks/useMemeWall';
 import { MintingForm } from './MintingForm';
+import { NFTDetailsModal } from './NFTDetailsModal';
 import { PublicKey } from '@solana/web3.js';
 
 export const MemeWall: React.FC = () => {
   const { publicKey } = useWallet();
   const { slots, currentPhase, isLoading, error, fetchSlots, checkWhitelistStatus } = useMemeWall();
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [selectedNFT, setSelectedNFT] = useState<any>(null);
   const [isWhitelisted, setIsWhitelisted] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -43,20 +45,28 @@ export const MemeWall: React.FC = () => {
     setSelectedSlot(null);
   };
 
+  const handleNFTClick = (slot: any) => {
+    setSelectedNFT(slot);
+  };
+
+  const handleCloseNFTModal = () => {
+    setSelectedNFT(null);
+  };
+
   const canMint = (slot: any) => {
     if (!slot.isMinted) return true;
-    return publicKey && slot.owner.equals(publicKey);
+    return publicKey && slot.owner === publicKey.toString();
   };
 
   const getSlotStatus = (slot: any) => {
     if (!slot.isMinted) return 'Available';
-    if (publicKey && slot.owner.equals(publicKey)) return 'Yours';
+    if (publicKey && slot.owner === publicKey.toString()) return 'Yours';
     return 'Minted';
   };
 
   const getSlotStatusColor = (slot: any) => {
     if (!slot.isMinted) return 'bg-green-100 text-green-800';
-    if (publicKey && slot.owner.equals(publicKey)) return 'bg-blue-100 text-blue-800';
+    if (publicKey && slot.owner === publicKey.toString()) return 'bg-blue-100 text-blue-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -149,9 +159,9 @@ export const MemeWall: React.FC = () => {
                     <span className="text-white text-lg font-bold">NFT</span>
                   </div>
                   <p className="text-xs text-gray-600 break-words">
-                    {publicKey && slot.owner.equals(publicKey) ? 'Your NFT' : 'Minted'}
+                    {publicKey && slot.owner === publicKey.toString() ? 'Your NFT' : 'Minted'}
                   </p>
-                  {publicKey && slot.owner.equals(publicKey) && (
+                                      {publicKey && slot.owner === publicKey.toString() && (
                     <button
                       onClick={() => window.open(`https://explorer.solana.com/address/${slot.mint.toString()}?cluster=devnet`, '_blank')}
                       className="text-xs text-blue-500 hover:text-blue-700 mt-1"
@@ -173,21 +183,12 @@ export const MemeWall: React.FC = () => {
             {/* Action Button */}
             <div className="p-3">
               {slot.isMinted ? (
-                publicKey && slot.owner.equals(publicKey) ? (
-                  <button
-                    className="w-full bg-blue-500 text-white text-sm py-2 px-3 rounded hover:bg-blue-600 transition-colors"
-                    onClick={() => window.open(`https://explorer.solana.com/address/${slot.mint.toString()}?cluster=devnet`, '_blank')}
-                  >
-                    View NFT
-                  </button>
-                ) : (
-                  <button
-                    className="w-full bg-gray-300 text-gray-500 text-sm py-2 px-3 rounded cursor-not-allowed"
-                    disabled
-                  >
-                    Minted
-                  </button>
-                )
+                <button
+                  className="w-full bg-blue-500 text-white text-sm py-2 px-3 rounded hover:bg-blue-600 transition-colors"
+                  onClick={() => handleNFTClick(slot)}
+                >
+                  View NFT Details
+                </button>
               ) : (
                 <button
                   className="w-full bg-green-500 text-white text-sm py-2 px-3 rounded hover:bg-green-600 transition-colors"
@@ -207,6 +208,14 @@ export const MemeWall: React.FC = () => {
           slotNumber={selectedSlot}
           onMintSuccess={handleMintSuccess}
           onClose={handleCloseForm}
+        />
+      )}
+
+      {/* NFT Details Modal */}
+      {selectedNFT && (
+        <NFTDetailsModal
+          slot={selectedNFT}
+          onClose={handleCloseNFTModal}
         />
       )}
 

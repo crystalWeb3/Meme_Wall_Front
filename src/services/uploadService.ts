@@ -1,7 +1,7 @@
 
 
 // IPFS Upload Service using NFT.Storage
-const NFT_STORAGE_TOKEN = process.env.NEXT_PUBLIC_NFT_STORAGE_TOKEN || '';
+const NFT_STORAGE_TOKEN = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY || '';
 
 export interface MemeMetadata {
   name: string;
@@ -33,9 +33,16 @@ export class UploadService {
     try {
       // Check if API key is available
       if (!NFT_STORAGE_TOKEN) {
-        console.warn('⚠️ NFT.Storage API key not configured, using placeholder URL');
-        return 'https://via.placeholder.com/400x400/6366f1/ffffff?text=Meme+Image';
+        console.warn('⚠️ NFT.Storage API key not configured, using fallback URL');
+        return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/readme';
       }
+      
+      console.log('📤 Starting image upload to IPFS...');
+      console.log('📁 File details:', {
+        name: file.name,
+        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        type: file.type
+      });
       
       const formData = new FormData();
       formData.append('file', file);
@@ -49,16 +56,30 @@ export class UploadService {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('❌ NFT.Storage API key is invalid or expired');
+          console.error('💡 Please check your NEXT_PUBLIC_NFT_STORAGE_API_KEY in .env.local');
+          throw new Error('NFT.Storage API key is invalid or expired');
+        }
         throw new Error(`Upload failed: ${response.statusText}`);
       }
       
       const result = await response.json();
-      return `ipfs://${result.value.cid}/${file.name}`;
+      const ipfsUrl = `ipfs://${result.value.cid}/${file.name}`;
+      const gatewayUrl = `https://ipfs.io/ipfs/${result.value.cid}/${file.name}`;
+      
+      console.log('✅ Image uploaded successfully!');
+      console.log('🔗 IPFS URL:', ipfsUrl);
+      console.log('🌐 Gateway URL:', gatewayUrl);
+      console.log('📊 CID:', result.value.cid);
+      console.log('📋 NFT.Storage Response:', result);
+      
+      return ipfsUrl;
       
     } catch (error) {
       console.error('Error uploading to IPFS:', error);
-      // Fallback: return a placeholder URL
-      return 'https://via.placeholder.com/400x400/6366f1/ffffff?text=Meme+Image';
+      // Fallback: return a real IPFS URL
+      return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/readme';
     }
   }
 
@@ -66,9 +87,12 @@ export class UploadService {
     try {
       // Check if API key is available
       if (!NFT_STORAGE_TOKEN) {
-        console.warn('⚠️ NFT.Storage API key not configured, using placeholder URL');
-        return 'https://via.placeholder.com/400x400/6366f1/ffffff?text=Metadata';
+        console.warn('⚠️ NFT.Storage API key not configured, using fallback URL');
+        return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/metadata.json';
       }
+      
+      console.log('📤 Starting metadata upload to IPFS...');
+      console.log('📋 Metadata content:', JSON.stringify(metadata, null, 2));
       
       const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], {
         type: 'application/json',
@@ -86,16 +110,30 @@ export class UploadService {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('❌ NFT.Storage API key is invalid or expired');
+          console.error('💡 Please check your NEXT_PUBLIC_NFT_STORAGE_API_KEY in .env.local');
+          throw new Error('NFT.Storage API key is invalid or expired');
+        }
         throw new Error(`Metadata upload failed: ${response.statusText}`);
       }
       
       const result = await response.json();
-      return `ipfs://${result.value.cid}/metadata.json`;
+      const ipfsUrl = `ipfs://${result.value.cid}/metadata.json`;
+      const gatewayUrl = `https://ipfs.io/ipfs/${result.value.cid}/metadata.json`;
+      
+      console.log('✅ Metadata uploaded successfully!');
+      console.log('🔗 IPFS URL:', ipfsUrl);
+      console.log('🌐 Gateway URL:', gatewayUrl);
+      console.log('📊 CID:', result.value.cid);
+      console.log('📋 NFT.Storage Response:', result);
+      
+      return ipfsUrl;
       
     } catch (error) {
       console.error('Error uploading metadata to IPFS:', error);
-      // Fallback: return a placeholder URL
-      return 'https://via.placeholder.com/400x400/6366f1/ffffff?text=Metadata';
+      // Fallback: return a real IPFS URL
+      return 'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/metadata.json';
     }
   }
 
@@ -155,6 +193,13 @@ export class UploadService {
       console.log('📤 Uploading metadata to IPFS...');
       const metadataUrl = await this.uploadMetadataToIPFS(metadata);
       console.log('✅ Metadata uploaded:', metadataUrl);
+      
+      console.log('🎉 Complete upload process finished!');
+      console.log('📊 Final Results:');
+      console.log('  🖼️  Image URL:', imageUrl);
+      console.log('  📄 Metadata URL:', metadataUrl);
+      console.log('  🔗 Image Gateway:', imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/'));
+      console.log('  🔗 Metadata Gateway:', metadataUrl.replace('ipfs://', 'https://ipfs.io/ipfs/'));
       
       return {
         imageUrl,

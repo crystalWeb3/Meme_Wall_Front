@@ -1,69 +1,61 @@
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { useState, useEffect } from 'react';
-import { PublicKey } from '@solana/web3.js';
-import { Program, AnchorProvider, Idl } from '@coral-xyz/anchor';
-import { IDL } from '../idl/meme_wall';
-
-// Program ID
-const PROGRAM_ID = new PublicKey("3Pdj6A1v7HpFCi6JHN1St74hSyaDriGjBoVkkNVYjZKV");
+import { useMemo } from 'react';
+import { Program, AnchorProvider } from '@coral-xyz/anchor';
+import IDL from '../idl/meme_wall.json'; // Import JSON IDL directly
 
 export const useAnchorProgram = () => {
-  // Prevent SSR hydration errors by only running on client
-  const isClient = typeof window !== 'undefined';
-  
   const { connection } = useConnection();
   const wallet = useWallet();
-  const [provider, setProvider] = useState<AnchorProvider | null>(null);
-  const [program, setProgram] = useState<any>(null);
 
-  // Create provider
-  useEffect(() => {
-    if (!isClient || !wallet || !wallet.publicKey) {
-      setProvider(null);
-      return;
-    }
-    
-    try {
-      const newProvider = new AnchorProvider(connection, wallet as any, {
-        commitment: 'confirmed',
-      });
-      setProvider(newProvider);
-    } catch (error) {
-      console.error('Error creating Anchor provider:', error);
-      setProvider(null);
-    }
-  }, [isClient, connection, wallet]);
+  const provider = useMemo(() => {
+    if (!wallet.publicKey) return null;
+    return new AnchorProvider(connection, wallet as any, { commitment: 'confirmed' });
+  }, [connection, wallet]);
 
-  // Create program
-  useEffect(() => {
-    if (!isClient || !provider || !IDL) {
-      setProgram(null);
-      return;
-    }
+  const program = useMemo(() => {
+    if (!provider) return null;
+
+    console.log('Creating Anchor program with IDL:', IDL);
+    console.log('IDL accounts:', IDL.accounts);
+    console.log('IDL instructions:', IDL.instructions?.map(i => i.name));
     
+    // Check if Slot account exists in IDL
+    const hasSlotAccount = IDL.accounts?.some(acc => acc.name === 'Slot');
+    console.log('Has Slot account in IDL:', hasSlotAccount);
+    
+    // Check if migrate_slots instruction exists
+    const hasMigrateSlots = IDL.instructions?.some(inst => inst.name === 'migrate_slots');
+    console.log('Has migrate_slots instruction in IDL:', hasMigrateSlots);
+    
+    console.log('Provider:', provider);
+
     try {
-      console.log('Creating Anchor program with IDL:', IDL);
-      console.log('Program ID:', PROGRAM_ID.toString());
-      console.log('Provider:', provider);
+      const prog = new Program(IDL, provider);
+      console.log('✅ Program created:', prog);
       
-      // Check if IDL has required properties
-      if (!IDL.instructions || !IDL.accounts) {
-        console.error('IDL is missing required properties:', IDL);
-        setProgram(null);
-        return;
+      // Test if Slot account is accessible
+      if ((prog.account as any).Slot) {
+        console.log('✅ Slot account is accessible in program');
+        console.log('Available accounts:', Object.keys(prog.account));
+      } else {
+        console.log('❌ Slot account is NOT accessible in program');
+        console.log('Available accounts:', Object.keys(prog.account));
+        
+        // Try to access it differently
+        try {
+          const slotAccount = (prog.account as any)['Slot'];
+          console.log('Slot account via bracket notation:', slotAccount);
+        } catch (e) {
+          console.log('Slot account not accessible via bracket notation either');
+        }
       }
       
-      // Create program directly without useMemo
-      const newProgram = new (Program as any)(IDL as any, PROGRAM_ID.toString(), provider);
-      console.log('✅ Program created successfully:', newProgram);
-      setProgram(newProgram);
-    } catch (error) {
-      console.error('Error creating Anchor program:', error);
-      console.error('IDL:', IDL);
-      console.error('Program ID:', PROGRAM_ID.toString());
-      setProgram(null);
+      return prog;
+    } catch (err) {
+      console.error('❌ Anchor Program creation error:', err);
+      return null;
     }
-  }, [isClient, provider]);
+  }, [provider]);
 
   return { program, provider };
-}; 
+};

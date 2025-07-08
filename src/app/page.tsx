@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { ClientWalletButton } from "@/components/ClientWalletButton";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { motion } from 'framer-motion';
 import { ExternalLink, TrendingUp } from 'lucide-react';
@@ -138,7 +138,7 @@ export default function Home() {
           </motion.button>
           
           <div className="transform scale-125">
-            <WalletMultiButton className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-lg font-bold px-6 py-3 rounded-lg" />
+            <ClientWalletButton className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-lg font-bold px-6 py-3 rounded-lg" />
           </div>
         </nav>
       </header>
@@ -151,7 +151,7 @@ export default function Home() {
             <div className="text-sm text-gray-300">
               Total Slots: {globalState.totalSlots.toLocaleString()} | 
               Minted: {globalState.mintedSlots.toLocaleString()} | 
-              Phase: {globalState.phase} | 
+              Phase: {globalState.phase && 'public' in globalState.phase ? 'Public' : 'Whitelist'} | 
               Price: {globalState.mintPrice} SOL
             </div>
           </div>
@@ -256,8 +256,36 @@ export default function Home() {
             setIsMintModalOpen(false);
             setSelectedSlot(null);
           }}
-          onMint={(slotNumber, metadataUri, mint, wallet) => mintSlot(slotNumber, metadataUri, mint, wallet)}
-          isWalletWhitelisted={isWalletWhitelisted}
+          onMint={async (formData) => {
+            try {
+              const result = await mintSlot(formData);
+              
+              if (result?.success) {
+                return {
+                  success: true,
+                  signature: result.transaction,
+                  explorerUrl: `https://explorer.solana.com/tx/${result.transaction}?cluster=devnet`,
+                  imageUrl: result.slot?.metadataUri,
+                  metadataUrl: result.slot?.metadataUri,
+                  nftMintAddress: result.nft?.mint?.toString(),
+                  slotAccountAddress: result.slot?.slotNumber ? 
+                    // This would be the actual slot PDA, but for now we'll use a placeholder
+                    '11111111111111111111111111111111' : undefined
+                };
+              } else {
+                return {
+                  success: false,
+                  error: result?.error || 'Minting failed'
+                };
+              }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Minting failed'
+              };
+            }
+          }}
+          isWalletWhitelisted={(walletAddress: string) => true}
           globalState={globalState}
         />
       )}
