@@ -5,16 +5,52 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Image as Link, DollarSign } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import Image from 'next/image';
+// import { PublicKey } from '@solana/web3.js';
+import SuccessModal from './SuccessModal';
 
 interface MintModalProps {
   slotNumber: number;
   isOpen: boolean;
   onClose: () => void;
+  onMint?: (formData: {
+    slotNumber: number;
+    title: string;
+    description: string;
+    image: File | null;
+    tokenName: string;
+    tokenSymbol: string;
+    tokenDescription: string;
+    tokenImage: string;
+    tokenExternalUrl: string;
+    tokenAttributes: Array<{ trait_type: string; value: string }>;
+  }) => Promise<{ 
+    success: boolean; 
+    signature?: string; 
+    error?: string; 
+    explorerUrl?: string;
+    imageUrl?: string;
+    metadataUrl?: string;
+    nftMintAddress?: string;
+    slotAccountAddress?: string;
+  }>;
+  isWalletWhitelisted?: (walletAddress: string) => boolean;
+  globalState?: { phase: { whitelist?: object } | { public?: object } } | null;
 }
 
-export default function MintModal({ slotNumber, isOpen, onClose }: MintModalProps) {
+export default function MintModal({ slotNumber, isOpen, onClose, onMint, isWalletWhitelisted, globalState }: MintModalProps) {
   const { connected, publicKey } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    slotNumber: number;
+    signature: string;
+    ownerAddress: string;
+    explorerUrl?: string;
+    imageUrl?: string;
+    metadataUrl?: string;
+    nftMintAddress?: string;
+    slotAccountAddress?: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -72,22 +108,88 @@ export default function MintModal({ slotNumber, isOpen, onClose }: MintModalProp
     setIsLoading(true);
 
     try {
-      // TODO: Implement actual minting logic
-      // 1. Upload image to IPFS/Arweave
-      // 2. Create metadata
-      // 3. Call Solana program
-      
-      console.log('Minting slot:', slotNumber);
-      console.log('Form data:', formData);
-      
-      // Simulate minting process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      alert('Slot minted successfully! 🎉');
-      onClose();
+      // Use real minting function if available, otherwise simulate
+      if (onMint) {
+        // Prepare form data for minting
+        const mintFormData = {
+          slotNumber,
+          title: formData.title || `Slot ${slotNumber}`,
+          description: formData.description || `Meme slot ${slotNumber}`,
+          image: formData.image,
+          tokenName: formData.title || `Slot ${slotNumber}`,
+          tokenSymbol: `SLOT${slotNumber}`,
+          tokenDescription: formData.description || `Meme slot ${slotNumber}`,
+          tokenImage: imagePreview || '',
+          tokenExternalUrl: formData.website || '',
+          tokenAttributes: [
+            { trait_type: "Slot Number", value: slotNumber.toString() },
+            { trait_type: "Owner", value: publicKey.toString() },
+            { trait_type: "DexScreener", value: formData.dexScreener || "" },
+            { trait_type: "Pump.fun", value: formData.pumpFun || "" },
+            { trait_type: "Website", value: formData.website || "" },
+            { trait_type: "Twitter", value: formData.twitter || "" },
+            { trait_type: "Telegram", value: formData.telegram || "" },
+          ]
+        };
+        
+        console.log('📋 Sending form data to mint:', mintFormData);
+        
+        const result = await onMint(mintFormData);
+        
+        if (result.success) {
+          setSuccessData({
+            slotNumber,
+            signature: result.signature || 'simulated_signature',
+            ownerAddress: publicKey.toString().slice(0, 8) + '...',
+            explorerUrl: result.explorerUrl,
+            imageUrl: result.imageUrl,
+            metadataUrl: result.metadataUrl,
+            nftMintAddress: result.nftMintAddress,
+            slotAccountAddress: result.slotAccountAddress
+          });
+          setShowSuccess(true);
+          onClose();
+        } else {
+          alert(`Minting failed: ${result.error || 'Please try again.'}`);
+        }
+      } else {
+        // Fallback to simulation
+        console.log('Starting mint process for slot:', slotNumber);
+        console.log('Wallet address:', publicKey.toString());
+        console.log('Form data:', formData);
+        
+        // Simulate realistic minting steps
+        const steps = [
+          'Uploading image to IPFS...',
+          'Creating metadata...',
+          'Preparing transaction...',
+          'Confirming on Solana...',
+          'Finalizing slot ownership...'
+        ];
+        
+        for (let i = 0; i < steps.length; i++) {
+          console.log(steps[i]);
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+        
+        // Success feedback
+        console.log('✅ Slot minted successfully!');
+        console.log('Transaction hash: 5J7X...K9M2');
+        console.log('Slot #' + slotNumber + ' is now owned by ' + publicKey.toString().slice(0, 8) + '...');
+        
+        setSuccessData({
+          slotNumber,
+          signature: '5J7X...K9M2',
+          ownerAddress: publicKey.toString().slice(0, 8) + '...',
+          explorerUrl: 'https://explorer.solana.com/tx/5J7X...K9M2?cluster=devnet'
+        });
+        setShowSuccess(true);
+        onClose();
+      }
     } catch (error) {
       console.error('Minting failed:', error);
-      alert('Minting failed. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Minting failed. Please try again.';
+      alert(`Minting failed: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -134,6 +236,46 @@ export default function MintModal({ slotNumber, isOpen, onClose }: MintModalProp
               </div>
             </div>
 
+            {/* Whitelist Status - Only show in Whitelist phase */}
+            {connected && publicKey && isWalletWhitelisted && globalState?.phase && 'whitelist' in globalState.phase && (
+              <div className={`rounded-lg p-4 mb-6 ${
+                isWalletWhitelisted(publicKey.toString()) 
+                  ? 'bg-green-600/20 border border-green-500/30' 
+                  : 'bg-red-600/20 border border-red-500/30'
+              }`}>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    isWalletWhitelisted(publicKey.toString()) ? 'bg-green-400' : 'bg-red-400'
+                  }`}></div>
+                  <span className={`font-semibold ${
+                    isWalletWhitelisted(publicKey.toString()) ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {isWalletWhitelisted(publicKey.toString()) 
+                      ? '✅ Wallet is whitelisted' 
+                      : '❌ Wallet not whitelisted - Contact admin to be added'
+                    }
+                  </span>
+                </div>
+                {!isWalletWhitelisted(publicKey.toString()) && (
+                  <p className="text-sm text-gray-300 mt-2">
+                    Your wallet address: {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-8)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Public Phase Status */}
+            {connected && publicKey && globalState?.phase && 'public' in globalState.phase && (
+              <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-400"></div>
+                  <span className="font-semibold text-blue-400">
+                    🌐 Public Minting - Anyone can mint!
+                  </span>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Image Upload */}
               <div>
@@ -149,6 +291,8 @@ export default function MintModal({ slotNumber, isOpen, onClose }: MintModalProp
                       <Image 
                         src={imagePreview} 
                         alt="Preview" 
+                        width={128}
+                        height={128}
                         className="w-32 h-32 object-cover rounded-lg mx-auto"
                       />
                       <p className="text-sm text-gray-400">Click to change image</p>
@@ -264,6 +408,22 @@ export default function MintModal({ slotNumber, isOpen, onClose }: MintModalProp
             </form>
           </motion.div>
         </motion.div>
+      )}
+      
+      {/* Success Modal */}
+      {showSuccess && successData && (
+        <SuccessModal
+          isOpen={showSuccess}
+          onClose={() => setShowSuccess(false)}
+          slotNumber={successData.slotNumber}
+          transactionSignature={successData.signature}
+          ownerAddress={successData.ownerAddress}
+          explorerUrl={successData.explorerUrl}
+          imageUrl={successData.imageUrl}
+          metadataUrl={successData.metadataUrl}
+          nftMintAddress={successData.nftMintAddress}
+          slotAccountAddress={successData.slotAccountAddress}
+        />
       )}
     </AnimatePresence>
   );
